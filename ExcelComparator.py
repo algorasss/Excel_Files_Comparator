@@ -5,6 +5,10 @@ import pandas as pd
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
 from openpyxl.styles import Alignment
+import os
+import sys
+import subprocess
+
 
 class ExcelDiffTool:
     def __init__(self, master):
@@ -13,6 +17,9 @@ class ExcelDiffTool:
         self.master.geometry("500x300")
 
         self.files = []
+
+        self.label_drag_hint = tk.Label(master, text="Drag and drop Excel files (.xlsx) below, or use 'Add Files' button")
+        self.label_drag_hint.pack(pady=(10, 0))
 
         list_frame = tk.Frame(master)
         list_frame.pack(fill="both", expand=False, padx=10, pady=(10, 5))
@@ -26,18 +33,12 @@ class ExcelDiffTool:
 
         self.listbox.drop_target_register(DND_FILES)
         self.listbox.dnd_bind('<<Drop>>', self.drop)
-        # self.label = tk.Label(master, text="Drag and drop Excel files here\nor click 'Add Files'", bg="#f0f0f0")
-        # self.label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
- 
-        # self.label.config(highlightbackground="grey", highlightthickness=2)
-
-        # self.label.drop_target_register(DND_FILES)
-        # self.label.dnd_bind('<<Drop>>', self.drop)
 
         # context menu
         self.menu = tk.Menu(master, tearoff=0)
+        self.menu.add_command(label="Add files", command=self.add_files)
         self.menu.add_command(label="Remove selected", command=self.remove_selected)
-        self.menu.add_command(label="Clear all", command=self.clear_files)
+        self.menu.add_command(label="Clear all files", command=self.clear_files)
 
         # bind right click
         self.listbox.bind("<Button-3>", self._on_right_click)   # Windows, Linux
@@ -53,7 +54,7 @@ class ExcelDiffTool:
         self.remove_btn = tk.Button(btn_frame, text="Remove selected", command=self.remove_selected)
         self.remove_btn.pack(side="left", padx=(0, 6))
 
-        self.delete_files_btn = tk.Button(btn_frame, text="Clear Files", command=self.clear_files)
+        self.delete_files_btn = tk.Button(btn_frame, text="Clear all files", command=self.clear_files)
         self.delete_files_btn.pack(side="left", padx=(0, 6))
 
         self.compare_btn = tk.Button(master, text="Compare", command=self.compare)
@@ -66,9 +67,6 @@ class ExcelDiffTool:
             self.listbox.insert(tk.END, p)
 
     def drop(self, event):
-        #self.label.config(highlightbackground="green", highlightthickness=3)       #TODO: upgrade visual feedback
-        #self.master.after(250, lambda: self.label.config(highlightbackground="gray", highlightthickness=2))
-
         paths = self.master.tk.splitlist(event.data)
         added = False
         for p in paths:
@@ -88,8 +86,6 @@ class ExcelDiffTool:
                 added = True
         if added:
             self.update_listbox()
-        #self.files.extend(paths)
-        #self.label.config(text="\n".join(self.files))
 
     def remove_selected(self):
         sel = self.listbox.curselection()
@@ -106,6 +102,7 @@ class ExcelDiffTool:
         if messagebox.askyesno("Confirm", "Clear all files?"):
             self.files.clear()
             self.update_listbox()
+
     def _on_right_click(self, event):
         try:
             index = self.listbox.nearest(event.y)
@@ -168,7 +165,14 @@ class ExcelDiffTool:
         save_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
         if save_path:
             wb.save(save_path)
-            messagebox.showinfo("Done", f"Diff saved to {save_path}")
+            try:
+                if sys.platform.startswith("win"):
+                    os.startfile(save_path)
+                elif sys.platform == "darwin":
+                    subprocess.Popen(["open", save_path])
+            except Exception as e:
+                # всё равно уведомим, что сохранили, и сообщим, если автозапуск не удался
+                messagebox.showinfo("Done", f"Diff saved to {save_path}\n(Couldn't open the file automatically: {e})")
 
 if __name__ == "__main__":
     root = TkinterDnD.Tk()
