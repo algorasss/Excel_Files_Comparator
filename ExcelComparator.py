@@ -14,36 +14,109 @@ class ExcelDiffTool:
 
         self.files = []
 
-        self.label = tk.Label(master, text="Drag and drop Excel files here\nor click 'Add Files'", bg="#f0f0f0")
-        self.label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        list_frame = tk.Frame(master)
+        list_frame.pack(fill="both", expand=False, padx=10, pady=(10, 5))
+
+        self.listbox = tk.Listbox(list_frame, selectmode=tk.SINGLE, height=8)
+        self.listbox.pack(side="left", fill="both", expand=True)
+
+        scrollbar = tk.Scrollbar(list_frame, command=self.listbox.yview)
+        scrollbar.pack(side="right", fill="y")
+        self.listbox.config(yscrollcommand=scrollbar.set)
+
+        self.listbox.drop_target_register(DND_FILES)
+        self.listbox.dnd_bind('<<Drop>>', self.drop)
+        # self.label = tk.Label(master, text="Drag and drop Excel files here\nor click 'Add Files'", bg="#f0f0f0")
+        # self.label.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
  
-        self.label.config(highlightbackground="grey", highlightthickness=2)
+        # self.label.config(highlightbackground="grey", highlightthickness=2)
 
-        self.label.drop_target_register(DND_FILES)
-        self.label.dnd_bind('<<Drop>>', self.drop)
+        # self.label.drop_target_register(DND_FILES)
+        # self.label.dnd_bind('<<Drop>>', self.drop)
 
-        self.delete_files_btn = tk.Button(master, text="Clear Files", command=lambda: [self.files.clear(), self.label.config(text="")])
-        self.delete_files_btn.pack(pady=5)
+        # context menu
+        self.menu = tk.Menu(master, tearoff=0)
+        self.menu.add_command(label="Remove selected", command=self.remove_selected)
+        self.menu.add_command(label="Clear all", command=self.clear_files)
 
-        self.add_btn = tk.Button(master, text="Add Files", command=self.add_files)
-        self.add_btn.pack(pady=5)
+        # bind right click
+        self.listbox.bind("<Button-3>", self._on_right_click)   # Windows, Linux
+        self.listbox.bind("<Button-2>", self._on_right_click)   # Mac sometimes
+
+        # controls
+        btn_frame = tk.Frame(master)
+        btn_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        self.add_btn = tk.Button(btn_frame, text="Add Files", command=self.add_files)
+        self.add_btn.pack(side="left", padx=(0, 6))
+
+        self.remove_btn = tk.Button(btn_frame, text="Remove selected", command=self.remove_selected)
+        self.remove_btn.pack(side="left", padx=(0, 6))
+
+        self.delete_files_btn = tk.Button(btn_frame, text="Clear Files", command=self.clear_files)
+        self.delete_files_btn.pack(side="left", padx=(0, 6))
 
         self.compare_btn = tk.Button(master, text="Compare", command=self.compare)
         self.compare_btn.pack(pady=5)
 
 
+    def update_listbox(self): 
+        self.listbox.delete(0, tk.END)
+        for p in self.files:
+            self.listbox.insert(tk.END, p)
+
     def drop(self, event):
-        self.label.config(highlightbackground="green", highlightthickness=3)       #TODO: upgrade visual feedback
-        self.master.after(250, lambda: self.label.config(highlightbackground="gray", highlightthickness=2))
+        #self.label.config(highlightbackground="green", highlightthickness=3)       #TODO: upgrade visual feedback
+        #self.master.after(250, lambda: self.label.config(highlightbackground="gray", highlightthickness=2))
 
         paths = self.master.tk.splitlist(event.data)
-        self.files.extend([p for p in paths if p.endswith('.xlsx')])
-        self.label.config(text="\n".join(self.files))
+        added = False
+        for p in paths:
+            if p.endswith('.xlsx') and p not in self.files:
+                self.files.append(p)
+                added = True
+        if added:
+            self.update_listbox()
+        return "break"
 
     def add_files(self):
         paths = filedialog.askopenfilenames(filetypes=[("Excel files", "*.xlsx")])
-        self.files.extend(paths)
-        self.label.config(text="\n".join(self.files))
+        added = False
+        for p in paths:
+            if p.endswith('.xlsx') and p not in self.files:
+                self.files.append(p)
+                added = True
+        if added:
+            self.update_listbox()
+        #self.files.extend(paths)
+        #self.label.config(text="\n".join(self.files))
+
+    def remove_selected(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            return
+        idx = sel[0]
+        try:
+            del self.files[idx]
+        except IndexError:
+            pass
+        self.update_listbox()
+
+    def clear_files(self):
+        if messagebox.askyesno("Confirm", "Clear all files?"):
+            self.files.clear()
+            self.update_listbox()
+    def _on_right_click(self, event):
+        try:
+            index = self.listbox.nearest(event.y)
+            self.listbox.selection_clear(0, tk.END)
+            self.listbox.selection_set(index)
+        except Exception:
+            pass
+        try:
+            self.menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.menu.grab_release()
 
 
     def compare(self):
