@@ -38,8 +38,9 @@ class ExcelDiffTool:
 
         self.master = master
         self.master.title("Excel Diff Tool")#title of the app
-        self.master.geometry("520x340")
+        self.master.geometry("465x320")
         self.master.configure(bg = self.white2)
+        self.master.minsize(465, 320)   
 
         self.files = []
 
@@ -80,7 +81,8 @@ class ExcelDiffTool:
                                      font=CTkFont(size=20, weight="bold"), text_color=self.green6)
         self.compare_btn.pack(pady=(20, 20))
 
-    # TODO: MAKE EXCEL SHEET PRETTIER WITH BETTER FORMATTING
+    # TODO: MAKE EXCEL SHEET PRETTIER WITH BETTER FORMATTING, COMMENT CELLS
+    # TODO: ADD PROPER NAME AND LOGO
     
     def update_textbox(self):
         self.textbox.configure(state="normal")
@@ -157,9 +159,10 @@ class ExcelDiffTool:
                 cell = ws.cell(row=r + 1, column=c + 1)
                 if all(v == values[0] for v in values):
                     cell.value = values[0]
-                else:
+                    cell.alignment = Alignment(wrap_text=True, horizontal="justify", vertical="center", shrink_to_fit=True, justifyLastLine=True)
+                else:   
                     cell.value = "\n".join(f"{i + 1}: {v}" for i, v in enumerate(values))
-                    cell.alignment = Alignment(wrap_text=True)
+                    cell.alignment = Alignment(wrap_text=True, horizontal="justify", vertical="center", shrink_to_fit=True, justifyLastLine=True)
                     cell.fill = red_fill
 
         save_path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
